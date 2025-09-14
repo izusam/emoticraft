@@ -606,7 +606,7 @@ def get_actionable_recommendations(result):
 
 # -------------------------------
 # Main App
-# -------------------------------
+# -------------.------------------
 def main():
     # Header
     st.markdown("""
