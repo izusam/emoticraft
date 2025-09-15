@@ -194,13 +194,28 @@ def clean_text(text):
 # -------------------------------
 @st.cache_resource
 def load_models():
-    try:
-        model = joblib.load("lr_model.joblib")
-        vectorizer = joblib.load("vectorizer.joblib")
-        return model, vectorizer
-    except FileNotFoundError:
+    import os
+    import joblib
+    model_path = "lr_model.joblib"
+    vectorizer_path = "vectorizer.joblib"
+
+    if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
         st.error("⚠️ Model files not found! Using demo mode with simulated predictions.")
         return None, None
+
+    model = joblib.load(model_path)
+    vectorizer = joblib.load(vectorizer_path)
+
+    # Ensure vectorizer is fitted
+    from sklearn.utils.validation import check_is_fitted
+    try:
+        check_is_fitted(vectorizer, attributes=["idf_"])
+    except Exception as e:
+        st.error(f"Vectorizer not fitted: {e}")
+        return None, None
+
+    return model, vectorizer
+
 
 # -------------------------------
 # Enhanced prediction functions
