@@ -227,58 +227,65 @@ def predict_content_emotion(text_content, model, vectorizer, content_type="Video
         # Demo mode - generate realistic predictions
         return generate_demo_predictions(text_content, content_type)
     
-    # Original prediction logic
-    X_tfidf = vectorizer.transform([clean_text(text_content)])
-    probs = model.predict_proba(X_tfidf)
+    try:
+        # FIXED: Remove the incorrect vectorizer.fit() call
+        cleaned_text = clean_text(text_content)
+        X_tfidf = vectorizer.transform([cleaned_text])  # Only transform, don't fit
+        probs = model.predict_proba(X_tfidf)
 
-    emotion_probs = {}
-    for i, emo in enumerate(EMOTION_COLUMNS):
-        if i < len(probs):
-            arr = probs[i]
-            p = arr[0, 1] if arr.shape[1] == 2 else arr[0, 0]
-            emotion_probs[emo] = float(p)
+        emotion_probs = {}
+        for i, emo in enumerate(EMOTION_COLUMNS):
+            if i < len(probs):
+                arr = probs[i]
+                p = arr[0, 1] if arr.shape[1] == 2 else arr[0, 0]
+                emotion_probs[emo] = float(p)
 
-    # Enhanced analysis for content types
-    content_metrics = calculate_content_metrics(emotion_probs, content_type)
-    
-    reaction_scores = {}
-    for group, emotions in AUDIENCE_REACTION_GROUPS.items():
-        vals = [emotion_probs[e] for e in emotions if e in emotion_probs]
-        reaction_scores[group] = float(max(vals)) if vals else 0.0
+        # Enhanced analysis for content types
+        content_metrics = calculate_content_metrics(emotion_probs, content_type)
+        
+        reaction_scores = {}
+        for group, emotions in AUDIENCE_REACTION_GROUPS.items():
+            vals = [emotion_probs[e] for e in emotions if e in emotion_probs]
+            reaction_scores[group] = float(max(vals)) if vals else 0.0
 
-    # Overall sentiment calculation
-    positive_score = reaction_scores['Positive_Response']
-    negative_score = reaction_scores['Negative_Response']
-    neutral_score = reaction_scores['Neutral_Response']
-    
-    max_score = max(positive_score, negative_score, neutral_score)
-    if max_score < min_confidence:
-        overall_sentiment = "Neutral"
-        sentiment_confidence = max_score
-        sentiment_color = "gray"
-    else:
-        if positive_score >= max(negative_score, neutral_score):
-            overall_sentiment = "Positive"
-            sentiment_confidence = positive_score
-            sentiment_color = "green"
-        elif negative_score >= max(positive_score, neutral_score):
-            overall_sentiment = "Negative"
-            sentiment_confidence = negative_score
-            sentiment_color = "red"
-        else:
+        # Overall sentiment calculation
+        positive_score = reaction_scores['Positive_Response']
+        negative_score = reaction_scores['Negative_Response']
+        neutral_score = reaction_scores['Neutral_Response']
+        
+        max_score = max(positive_score, negative_score, neutral_score)
+        if max_score < min_confidence:
             overall_sentiment = "Neutral"
-            sentiment_confidence = neutral_score
+            sentiment_confidence = max_score
             sentiment_color = "gray"
+        else:
+            if positive_score >= max(negative_score, neutral_score):
+                overall_sentiment = "Positive"
+                sentiment_confidence = positive_score
+                sentiment_color = "green"
+            elif negative_score >= max(positive_score, neutral_score):
+                overall_sentiment = "Negative"
+                sentiment_confidence = negative_score
+                sentiment_color = "red"
+            else:
+                overall_sentiment = "Neutral"
+                sentiment_confidence = neutral_score
+                sentiment_color = "gray"
 
-    return {
-        "emotion_probs": emotion_probs,
-        "reaction_scores": reaction_scores,
-        "content_metrics": content_metrics,
-        "overall_sentiment": overall_sentiment,
-        "sentiment_confidence": sentiment_confidence,
-        "sentiment_color": sentiment_color,
-        "content_type": content_type
-    }
+        return {
+            "emotion_probs": emotion_probs,
+            "reaction_scores": reaction_scores,
+            "content_metrics": content_metrics,
+            "overall_sentiment": overall_sentiment,
+            "sentiment_confidence": sentiment_confidence,
+            "sentiment_color": sentiment_color,
+            "content_type": content_type
+        }
+        
+    except Exception as e:
+        st.error(f"Prediction error: {e}")
+        st.info("Falling back to demo mode.")
+        return generate_demo_predictions(text_content, content_type)
 
 def generate_demo_predictions(text_content, content_type):
     """Generate realistic demo predictions when models aren't available"""
